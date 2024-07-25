@@ -22,7 +22,7 @@ function login() {
 
     $data = json_encode([
         "email" => "rhsalisu",
-        "password" => "Rabiu2004@"
+        "password" => "Rhs2048@"
     ]);
 
     $ch = curl_init($url);
