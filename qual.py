@@ -34,20 +34,30 @@ def login():
     }
 
     with requests.Session() as session:
-        response = session.post(url, headers=headers, json=data)
-        if response.status_code == 200:
-            response_data = response.json()
-            if response_data["code"] == 0:
-                print("Login successful")
-                # Save cookies using pickle
-                with open(COOKIES_FILE, 'wb') as f:
-                    pickle.dump(session.cookies, f)
-                return True
+        try:
+            response = session.post(url, headers=headers, json=data)
+            response.raise_for_status()  # Raise an HTTPError for bad responses
+            if response.text:
+                try:
+                    response_data = response.json()
+                    if response_data.get("code") == 0:
+                        print("Login successful")
+                        # Save cookies using pickle
+                        with open(COOKIES_FILE, 'wb') as f:
+                            pickle.dump(session.cookies, f)
+                        return True
+                    else:
+                        print("Login failed:", response_data.get("message", "No message in response"))
+                        return False
+                except json.JSONDecodeError:
+                    print("Error decoding JSON from response")
+                    print(f"Response Text: {response.text}")
+                    return False
             else:
-                print("Login failed:", response_data["message"])
+                print("Empty response received")
                 return False
-        else:
-            print(f"Failed to login: HTTP {response.status_code} - {response.text}")
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to login: {e}")
             return False
 
 
@@ -70,23 +80,33 @@ def faucet(session):  # Take the session object as an argument
         "Te": "trailers"
     }
 
-    response = session.post(url, headers=headers, json={})  # Use the existing session object
-    if response.status_code == 200:
-        response_data = response.json()
-        print("Response:", json.dumps(response_data))
-        if response_data["code"] == 0:
-            match = re.search(
-                r'<span translate=\'no\' class=\'text-info fs-2\'>(.+?)<\/span>',
-                response_data["message"],
-            )
-            amount = match.group(1) if match else "unknown amount"
-            print(f"Request successful: Received {amount}")
-            return True
-        elif response_data["code"] == 2:
-            print("Wave missed:", response_data["message"])
+    try:
+        response = session.post(url, headers=headers, json={})
+        response.raise_for_status()  # Raise an HTTPError for bad responses
+        if response.text:
+            try:
+                response_data = response.json()
+                print("Response:", json.dumps(response_data, indent=4))
+                if response_data.get("code") == 0:
+                    match = re.search(
+                        r'<span translate=\'no\' class=\'text-info fs-2\'>(.+?)<\/span>',
+                        response_data.get("message", ""),
+                    )
+                    amount = match.group(1) if match else "unknown amount"
+                    print(f"Request successful: Received {amount}")
+                    return True
+                elif response_data.get("code") == 2:
+                    print("Wave missed:", response_data.get("message", "No message in response"))
+                    return False
+            except json.JSONDecodeError:
+                print("Error decoding JSON from response")
+                print(f"Response Text: {response.text}")
+                return False
+        else:
+            print("Empty response received")
             return False
-    else:
-        print(f"Failed to request: HTTP {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to request: {e}")
         return False
 
 
@@ -96,8 +116,14 @@ if not login():
 else:  # Proceed only if login is successful
     with requests.Session() as session:
         # Load cookies using pickle
-        with open(COOKIES_FILE, 'rb') as f:
-            session.cookies.update(pickle.load(f))
+        try:
+            with open(COOKIES_FILE, 'rb') as f:
+                session.cookies.update(pickle.load(f))
+        except (FileNotFoundError, pickle.PickleError) as e:
+            print(f"Error loading cookies: {e}")
+            print("Exiting due to cookie loading failure.")
+            exit(1)
+
         while True:
             if not faucet(session):  # Pass the session object to faucet()
                 time.sleep(60)  # Wait before retrying
