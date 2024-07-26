@@ -5,8 +5,8 @@ import time
 import requests
 
 # Define your credentials directly
-EMAIL = "rhsalisu"
-PASSWORD = "Rhs2048@"
+EMAIL = "rhsalpo23"
+PASSWORD = "Plx2048@"
 COOKIES_FILE = 'cookies.txt'
 
 
