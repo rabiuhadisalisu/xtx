@@ -2,11 +2,12 @@ import json
 import pickle
 import re
 import time
+import os
 import requests
 
 # Define your credentials directly
-EMAIL = "rhsalisu"
-PASSWORD = "Rhs2048@"
+EMAIL = os.getenv("EMAIL")
+PASSWORD = os.getenv("PASSWORD")
 COOKIES_FILE = 'cookies.txt'
 
 
